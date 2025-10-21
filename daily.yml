@@ -1,0 +1,30 @@
+name: Daily Telegram Digest
+
+on:
+  schedule:
+    # 08:00 і 20:00 Київський час (UTC+3)
+    - cron: '0 5 * * *'   # 08:00 за Києвом (UTC+3)
+    - cron: '0 17 * * *'  # 20:00 за Києвом (UTC+3)
+  workflow_dispatch:       # дозволяє запускати вручну
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run agent
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}   # якщо використовуєш
+        run: python agent.py
