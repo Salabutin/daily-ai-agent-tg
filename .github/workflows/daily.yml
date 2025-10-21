@@ -27,4 +27,4 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}   # якщо використовуєш
-        run: python agent.py
+        run: python tg_agent.py
