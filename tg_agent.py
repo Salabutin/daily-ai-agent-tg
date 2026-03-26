@@ -2,6 +2,7 @@
 import os
 import requests
 import json
+import random
 from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -22,12 +23,34 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 # --- 2. Weather in Kyiv ---
 def get_weather():
+    # Try primary source: wttr.in
     try:
-        # English format
         url = "https://wttr.in/Kyiv?format=%C+%t&lang=en"
-        return requests.get(url, timeout=5).text.strip()
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            return response.text.strip()
     except Exception as e:
-        print("Weather error:", e)
+        print("Weather error (wttr.in):", e)
+    
+    # Fallback to Open-Meteo API
+    try:
+        # Kyiv coordinates: 50.4501, 30.5234
+        url = "https://api.open-meteo.com/v1/forecast?latitude=50.45&longitude=30.52&current_weather=true&temperature_unit=celsius"
+        data = requests.get(url, timeout=5).json()
+        temp = data["current_weather"]["temperature"]
+        weather_code = data["current_weather"]["weathercode"]
+        
+        # Simple weather code mapping
+        weather_desc = {
+            0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+            45: "Foggy", 48: "Foggy", 51: "Light drizzle", 61: "Light rain",
+            63: "Moderate rain", 65: "Heavy rain", 71: "Light snow", 73: "Moderate snow",
+            75: "Heavy snow", 95: "Thunderstorm"
+        }
+        desc = weather_desc.get(weather_code, "Unknown")
+        return f"{desc} +{temp}°C" if temp >= 0 else f"{desc} {temp}°C"
+    except Exception as e:
+        print("Weather error (Open-Meteo):", e)
         return "Could not get weather."
 
 # --- 3. Crypto prices ---
@@ -64,20 +87,36 @@ def get_news():
         print("News error:", e)
         return "No news available."
 
-# --- 6. Fact of the day in history ---
-def get_fact():
+# --- 6. Daily Stoic quote ---
+def get_stoic_quote():
+    # Try to get quote from API
     try:
-        today = datetime.now()
-        url = f"http://history.muffinlabs.com/date/{today.month}/{today.day}"
-        data = requests.get(url, timeout=10).json()
-        events = data.get("data", {}).get("Events", [])
-        if events:
-            event = events[0]  # take the first event
-            return f"{event['year']}: {event['text']}"
-        return "Fact not found."
+        # Quotable API with stoic philosophers
+        stoic_authors = "marcus-aurelius|epictetus|seneca"
+        url = f"https://api.quotable.io/quotes/random?tags=philosophy&limit=1"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data and len(data) > 0:
+                quote = data[0]
+                return f'"{quote["content"]}" — {quote["author"]}'
     except Exception as e:
-        print("Fact error:", e)
-        return "Could not get fact."
+        print("Stoic quote API error:", e)
+    
+    # Fallback: hardcoded stoic quotes
+    stoic_quotes = [
+        '"You have power over your mind - not outside events. Realize this, and you will find strength." — Marcus Aurelius',
+        '"Wealth consists not in having great possessions, but in having few wants." — Epictetus',
+        '"We suffer more often in imagination than in reality." — Seneca',
+        '"The happiness of your life depends upon the quality of your thoughts." — Marcus Aurelius',
+        '"It\'s not what happens to you, but how you react to it that matters." — Epictetus',
+        '"Luck is what happens when preparation meets opportunity." — Seneca',
+        '"Waste no more time arguing about what a good man should be. Be one." — Marcus Aurelius',
+        '"First say to yourself what you would be; and then do what you have to do." — Epictetus',
+        '"True happiness is to enjoy the present, without anxious dependence upon the future." — Seneca',
+        '"The best revenge is to be unlike him who performed the injury." — Marcus Aurelius',
+    ]
+    return random.choice(stoic_quotes)
 
 # --- 7. Create digest message ---
 def create_digest():
@@ -87,7 +126,7 @@ def create_digest():
 💵 {get_currency()}
 💰 {get_crypto()}
 📰 News:{get_news()}
-💡 Fact of the day: {get_fact()}""".strip()
+🏛️ Daily Stoic: {get_stoic_quote()}""".strip()
 
     # Compress text via OpenAI for a nice structured Telegram post
     try:
